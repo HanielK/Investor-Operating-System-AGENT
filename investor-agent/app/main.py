@@ -12,14 +12,26 @@ This module orchestrates the investment evaluation workflow:
 import sys
 from typing import Optional
 
-from config import Config
-from fmp_client import FMPClient
-from metrics import MetricsCalculator
-from scoring import InvestmentScorer
-from writers.sheets_writer import SheetsWriter
-from writers.excel_writer import ExcelWriter
-from storage.drive_store import DriveStore
-from storage.gcs_store import GCSStore
+# Use relative imports when run as a module
+try:
+    from .config import Config
+    from .fmp_client import FMPClient
+    from .metrics import MetricsCalculator
+    from .scoring import InvestmentScorer
+    from .writers.sheets_writer import SheetsWriter
+    from .writers.excel_writer import ExcelWriter
+    from .storage.drive_store import DriveStore
+    from .storage.gcs_store import GCSStore
+except ImportError:
+    # Fall back to absolute imports when run directly
+    from config import Config
+    from fmp_client import FMPClient
+    from metrics import MetricsCalculator
+    from scoring import InvestmentScorer
+    from writers.sheets_writer import SheetsWriter
+    from writers.excel_writer import ExcelWriter
+    from storage.drive_store import DriveStore
+    from storage.gcs_store import GCSStore
 
 
 def main(ticker: str, output_format: str = "sheets") -> int:

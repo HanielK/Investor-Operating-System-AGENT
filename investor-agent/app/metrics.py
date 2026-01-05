@@ -161,8 +161,21 @@ class MetricsCalculator:
     @staticmethod
     def _calculate_cagr(values: List[float]) -> float:
         """Calculate Compound Annual Growth Rate."""
-        if len(values) < 2 or values[-1] == 0:
+        if len(values) < 2:
             return 0
         
-        n = len(values) - 1
-        return (((values[0] / values[-1]) ** (1 / n)) - 1) * 100
+        # Filter out zero or negative values
+        positive_values = [v for v in values if v > 0]
+        if len(positive_values) < 2:
+            return 0
+        
+        # Values are in reverse chronological order (newest first)
+        # So beginning_value is at the end and ending_value is at the start
+        ending_value = positive_values[0]  # Most recent
+        beginning_value = positive_values[-1]  # Oldest
+        n = len(positive_values) - 1
+        
+        if beginning_value == 0:
+            return 0
+        
+        return (((ending_value / beginning_value) ** (1 / n)) - 1) * 100

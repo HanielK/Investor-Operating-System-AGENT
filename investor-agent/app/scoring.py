@@ -255,7 +255,8 @@ class InvestmentScorer:
             strengths.append("High revenue growth rate")
         
         quality = metrics.get("quality", {})
-        if quality.get("debt_to_equity", float('inf')) < 0.5:
+        debt_to_equity = quality.get("debt_to_equity")
+        if debt_to_equity is not None and debt_to_equity < 0.5:
             strengths.append("Low debt levels")
         if quality.get("cash_flow_to_net_income", 0) > 1.2:
             strengths.append("Excellent cash flow generation")
