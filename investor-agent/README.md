@@ -88,11 +88,24 @@ pip install -r requirements.txt
 docker build -t investor-agent .
 ```
 
-### Cloud Run Deployment
+### Cloud Run Deployment (for scheduled/batch jobs)
+
+The included `cloudrun.yaml` is configured for batch processing or scheduled Cloud Run jobs. For scheduled analysis runs, use Cloud Scheduler to trigger the job periodically:
 
 ```bash
+# Deploy the service
 gcloud run services replace cloudrun.yaml --project=YOUR_PROJECT_ID
+
+# Create a Cloud Scheduler job to run analysis daily
+gcloud scheduler jobs create http analyze-daily \
+  --location=us-central1 \
+  --schedule="0 9 * * *" \
+  --uri="https://investor-agent-[PROJECT_ID].run.app" \
+  --http-method=POST \
+  --message-body='{"ticker":"AAPL"}'
 ```
+
+Note: For production use, consider adding an HTTP server wrapper to handle job requests.
 
 ## Configuration
 

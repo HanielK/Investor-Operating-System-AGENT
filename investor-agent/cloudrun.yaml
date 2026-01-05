@@ -1,4 +1,6 @@
 # Cloud Run service configuration for Investor Operating System Agent
+# Note: This configuration is for running as a scheduled job or batch process,
+# not as an HTTP server. Remove health checks and port configurations for batch mode.
 
 apiVersion: serving.knative.dev/v1
 kind: Service
@@ -74,31 +76,6 @@ spec:
         
         - name: SCORE_THRESHOLD_HOLD
           value: "60"
-        
-        # Health check
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8080
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
-        
-        # Readiness check
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 8080
-          initialDelaySeconds: 10
-          periodSeconds: 5
-          timeoutSeconds: 3
-          failureThreshold: 2
-        
-        # Port configuration
-        ports:
-        - containerPort: 8080
-          name: http1
       
       # Request timeout (max execution time)
       timeoutSeconds: 300

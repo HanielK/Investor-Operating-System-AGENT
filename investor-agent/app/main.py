@@ -55,9 +55,10 @@ def main(ticker: str, output_format: str = "sheets") -> int:
         score = scorer.score(metrics)
         
         # Prepare results
+        profile = company_data.get("profile", {})
         results = {
             "ticker": ticker,
-            "company_name": company_data.get("companyName", ""),
+            "company_name": profile.get("companyName", ticker),
             "metrics": metrics,
             "score": score,
             "recommendation": scorer.get_recommendation(score)
