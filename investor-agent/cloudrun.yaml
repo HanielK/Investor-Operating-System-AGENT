@@ -1,0 +1,89 @@
+# Cloud Run service configuration for Investor Operating System Agent
+# Note: This configuration is for running as a scheduled job or batch process,
+# not as an HTTP server. Remove health checks and port configurations for batch mode.
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: investor-agent
+  labels:
+    cloud.googleapis.com/location: us-central1
+spec:
+  template:
+    metadata:
+      annotations:
+        # Auto-scaling configuration
+        autoscaling.knative.dev/minScale: '0'
+        autoscaling.knative.dev/maxScale: '10'
+        
+        # Resource limits
+        run.googleapis.com/cpu-throttling: 'true'
+        run.googleapis.com/startup-cpu-boost: 'true'
+    spec:
+      # Service account with necessary permissions
+      serviceAccountName: investor-agent-sa
+      
+      # Container configuration
+      containers:
+      - image: gcr.io/PROJECT_ID/investor-agent:latest
+        
+        # Resource allocation
+        resources:
+          limits:
+            cpu: '2'
+            memory: 2Gi
+          requests:
+            cpu: '1'
+            memory: 1Gi
+        
+        # Environment variables
+        env:
+        - name: FMP_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: fmp-api-key
+              key: key
+        
+        - name: GCP_PROJECT_ID
+          value: "PROJECT_ID"
+        
+        - name: GCS_BUCKET_NAME
+          value: "investor-analysis-data"
+        
+        - name: SHEETS_SPREADSHEET_ID
+          valueFrom:
+            secretKeyRef:
+              name: sheets-config
+              key: spreadsheet_id
+        
+        - name: SHEETS_WORKSHEET_NAME
+          value: "Investment Analysis"
+        
+        - name: DRIVE_FOLDER_ID
+          valueFrom:
+            secretKeyRef:
+              name: drive-config
+              key: folder_id
+        
+        - name: OUTPUT_DIR
+          value: "/tmp/investor-analysis"
+        
+        - name: LOG_LEVEL
+          value: "INFO"
+        
+        - name: SCORE_THRESHOLD_BUY
+          value: "80"
+        
+        - name: SCORE_THRESHOLD_HOLD
+          value: "60"
+      
+      # Request timeout (max execution time)
+      timeoutSeconds: 300
+      
+      # Container concurrency
+      containerConcurrency: 10
+
+  # Traffic configuration
+  traffic:
+  - percent: 100
+    latestRevision: true

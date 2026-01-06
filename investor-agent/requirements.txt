@@ -1,0 +1,30 @@
+# Investor Operating System Agent - Python Dependencies
+
+# Core dependencies
+requests==2.31.0
+
+# Google Cloud Platform
+google-api-python-client==2.108.0
+google-auth==2.25.2
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.0
+google-cloud-storage==2.14.0
+
+# Excel support
+openpyxl==3.1.2
+
+# Data processing
+python-dateutil==2.8.2
+
+# Environment and configuration
+python-dotenv==1.0.0
+
+# Optional: For better JSON handling
+ujson==5.9.0
+
+# Optional: For CLI improvements
+click==8.1.7
+colorama==0.4.6
+
+# Optional: For logging
+structlog==24.1.0
