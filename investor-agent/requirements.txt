@@ -10,6 +10,13 @@ google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
 google-cloud-storage==2.14.0
 
+# Web API (Cloud Run)
+fastapi==0.110.0
+uvicorn[standard]==0.27.1
+pydantic==2.6.4
+
+
+
 # Excel support
 openpyxl==3.1.2
 
