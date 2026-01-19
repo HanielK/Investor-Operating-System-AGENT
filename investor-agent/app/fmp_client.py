@@ -29,7 +29,7 @@ class FMPClient:
         if not api_key:
             raise ValueError("FMP API key is required")
         
-        self.api_key = api_key
+        self.api_key = api_key.strip().strip('"').strip("'")
         self.session = requests.Session()
     
     def _make_request(self, endpoint: str, params: Optional[Dict] = None) -> Any:
@@ -60,7 +60,10 @@ class FMPClient:
     @staticmethod
     def _normalize_ticker(ticker: str) -> str:
         """Normalize tickers for FMP (e.g., BRK.B -> BRK-B)."""
-        return ticker.strip().upper().replace(".", "-")
+        s = ticker.strip().upper()
+        if s in ("BRK.B", "BRK/B"):
+            return "BRK-B"
+        return s.replace(".", "-")
 
     def _symbol_params(self, ticker: str, params: Optional[Dict] = None) -> Dict[str, Any]:
         if params is None:
