@@ -27,7 +27,29 @@ class Config:
         
         # Google Sheets Configuration
         self.sheets_spreadsheet_id = os.getenv("SHEETS_SPREADSHEET_ID", "")
-        self.sheets_worksheet_name = os.getenv("SHEETS_WORKSHEET_NAME", "Investment Analysis")
+        self.sheets_worksheet_name = os.getenv("SHEETS_WORKSHEET_NAME", "Dashboard")
+        self.promotion_log_worksheet_name = os.getenv(
+            "PROMOTION_LOG_WORKSHEET_NAME",
+            "Promotion Log"
+        )
+
+        # Dashboard block bounds
+        self.dashboard_block_start_row = int(os.getenv("DASHBOARD_BLOCK_START_ROW", "2"))
+        self.dashboard_block_end_row = int(os.getenv("DASHBOARD_BLOCK_END_ROW", "250"))
+
+        # Promotion thresholds
+        self.promote_score_threshold = int(os.getenv("PROMOTE_SCORE_THRESHOLD", "75"))
+        self.high_priority_threshold = int(os.getenv("HIGH_PRIORITY_THRESHOLD", "85"))
+        self.moat_gate_threshold = int(os.getenv("MOAT_GATE_THRESHOLD", "8"))
+        self.min_fcf_positive = self._get_bool(os.getenv("MIN_FCF_POSITIVE", "true"))
+        self.roic_gate_above_sector_median = self._get_bool(os.getenv("ROIC_GATE_ABOVE_SECTOR_MEDIAN", "true"))
+        self.max_risk_flag_count = int(os.getenv("MAX_RISK_FLAG_COUNT", "0"))
+        self.max_net_debt_to_ebitda = float(os.getenv("MAX_NET_DEBT_TO_EBITDA", "4.0"))
+        self.require_thesis_not_broken = self._get_bool(os.getenv("REQUIRE_THESIS_NOT_BROKEN", "true"))
+
+        # Write controls
+        self.sheets_allow_append = self._get_bool(os.getenv("SHEETS_ALLOW_APPEND", "false"))
+        self.sheets_dry_run = self._get_bool(os.getenv("SHEETS_DRY_RUN", "false"))
         
         # Google Drive Configuration
         self.drive_folder_id = os.getenv("DRIVE_FOLDER_ID", "")
@@ -56,6 +78,10 @@ class Config:
                 f"Missing required configuration: {', '.join(missing)}. "
                 "Please set the required environment variables."
             )
+
+    @staticmethod
+    def _get_bool(raw_value: str) -> bool:
+        return str(raw_value).strip().lower() in {"1", "true", "yes", "y", "on"}
     
     def __repr__(self):
         """Return string representation of config (hiding sensitive data)."""

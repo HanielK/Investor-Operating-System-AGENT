@@ -56,18 +56,31 @@ class InvestmentScorer:
             health_score * self.WEIGHTS["financial_health"]
         )
         
-        return {
+        subscores = {
+            "profitability": round(profitability_score, 2),
+            "growth": round(growth_score, 2),
+            "value": round(value_score, 2),
+            "quality": round(quality_score, 2),
+            "financial_health": round(health_score, 2)
+        }
+
+        moat_score = self._estimate_moat_score(metrics, profitability_score, quality_score)
+        risk_flags = self._derive_risk_flags(metrics)
+        thesis_broken = bool(metrics.get("thesis_broken", False))
+
+        score_payload = {
+            "total": round(total_score, 2),
             "total_score": round(total_score, 2),
-            "category_scores": {
-                "profitability": round(profitability_score, 2),
-                "growth": round(growth_score, 2),
-                "value": round(value_score, 2),
-                "quality": round(quality_score, 2),
-                "financial_health": round(health_score, 2)
-            },
+            "moat_score": moat_score,
+            "risk_flags": risk_flags,
+            "thesis_broken": thesis_broken,
+            "subscores": subscores,
+            "category_scores": subscores,
             "strengths": self._identify_strengths(metrics),
             "concerns": self._identify_concerns(metrics)
         }
+        score_payload["decision"] = self.get_recommendation(score_payload)
+        return score_payload
     
     def _score_profitability(self, profitability: Dict) -> float:
         """Score profitability metrics (0-100)."""
@@ -305,7 +318,7 @@ class InvestmentScorer:
         Returns:
             Investment recommendation string
         """
-        total_score = score.get("total_score", 0)
+        total_score = score.get("total", score.get("total_score", 0))
         
         if total_score >= 80:
             return "STRONG BUY - Excellent investment opportunity"
@@ -317,3 +330,30 @@ class InvestmentScorer:
             return "CAUTIOUS - Weak fundamentals, consider alternatives"
         else:
             return "AVOID - Poor investment metrics"
+
+    def _estimate_moat_score(
+        self,
+        metrics: Dict[str, Any],
+        profitability_score: float,
+        quality_score: float
+    ) -> int:
+        """
+        Estimate moat score on a 0-10 scale.
+
+        Uses explicit metric if provided, otherwise approximates from quality/profitability.
+        """
+        explicit = metrics.get("moat_score")
+        if explicit is not None:
+            try:
+                return int(round(float(explicit)))
+            except (TypeError, ValueError):
+                pass
+        estimated = (profitability_score + quality_score) / 20
+        return max(0, min(10, int(round(estimated))))
+
+    def _derive_risk_flags(self, metrics: Dict[str, Any]) -> List[str]:
+        """Derive risk flags from provided metrics or concerns."""
+        risk_flags = metrics.get("risk_flags")
+        if isinstance(risk_flags, list):
+            return [str(flag) for flag in risk_flags]
+        return self._identify_concerns(metrics)

@@ -93,7 +93,7 @@ class ExcelWriter:
         # Score
         score = results.get("score", {})
         ws['A6'] = "Overall Score:"
-        ws['B6'] = score.get("total_score", 0)
+        ws['B6'] = score.get("total", score.get("total_score", 0))
         ws['B6'].font = Font(size=14, bold=True)
         
         # Recommendation
@@ -106,7 +106,7 @@ class ExcelWriter:
         ws['A9'].font = Font(bold=True)
         strengths = score.get("strengths", [])
         for i, strength in enumerate(strengths, start=10):
-            ws[f'A{i}'] = f"• {strength}"
+            ws[f'A{i}'] = f"- {strength}"
         
         # Concerns
         concern_row = 10 + len(strengths) + 1
@@ -114,7 +114,7 @@ class ExcelWriter:
         ws[f'A{concern_row}'].font = Font(bold=True)
         concerns = score.get("concerns", [])
         for i, concern in enumerate(concerns, start=concern_row + 1):
-            ws[f'A{i}'] = f"• {concern}"
+            ws[f'A{i}'] = f"- {concern}"
     
     def _write_metrics_sheet(self, ws, results: Dict[str, Any]):
         """Write detailed metrics to worksheet."""
@@ -171,17 +171,17 @@ class ExcelWriter:
             
             f.write(f"Ticker: {results.get('ticker', '')}\n")
             f.write(f"Company: {results.get('company_name', '')}\n")
-            f.write(f"Score: {results.get('score', {}).get('total_score', 0)}\n")
+            f.write(f"Score: {results.get('score', {}).get('total', results.get('score', {}).get('total_score', 0))}\n")
             f.write(f"Recommendation: {results.get('recommendation', '')}\n\n")
             
             score = results.get("score", {})
             f.write("STRENGTHS:\n")
             for strength in score.get("strengths", []):
-                f.write(f"  • {strength}\n")
+                f.write(f"  - {strength}\n")
             
             f.write("\nCONCERNS:\n")
             for concern in score.get("concerns", []):
-                f.write(f"  • {concern}\n")
+                f.write(f"  - {concern}\n")
             
             f.write("\n" + "=" * 80 + "\n")
         

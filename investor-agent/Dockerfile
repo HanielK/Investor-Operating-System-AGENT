@@ -31,4 +31,4 @@ RUN mkdir -p /tmp/investor-analysis
 ENV PYTHONPATH=/app
 
 # Default command
-CMD ["python", "app/main.py"]
+CMD ["sh", "-c", "uvicorn app.server:app --host 0.0.0.0 --port ${PORT:-8080}"]
