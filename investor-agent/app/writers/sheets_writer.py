@@ -5,7 +5,6 @@ Writes investment analysis results to Google Sheets.
 """
 
 from typing import Dict, Any
-import json
 
 
 class SheetsWriter:
@@ -32,14 +31,13 @@ class SheetsWriter:
     def _init_sheets_client(self):
         """Initialize Google Sheets API client."""
         try:
-            from google.oauth2 import service_account
+            import google.auth
             from googleapiclient.discovery import build
-            
-            credentials = service_account.Credentials.from_service_account_file(
-                self.config.google_credentials_path,
+
+            credentials, _ = google.auth.default(
                 scopes=['https://www.googleapis.com/auth/spreadsheets']
             )
-            
+
             self.sheets_service = build('sheets', 'v4', credentials=credentials)
         except ImportError:
             print("Warning: Google API client libraries not installed. Install with: pip install google-api-python-client google-auth")
