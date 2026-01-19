@@ -18,7 +18,8 @@ class Config:
     def __init__(self):
         """Initialize configuration from environment variables."""
         # API Keys
-        self.fmp_api_key = os.getenv("FMP_API_KEY", "")
+        raw_fmp_api_key = os.getenv("FMP_API_KEY", "")
+        self.fmp_api_key = (raw_fmp_api_key or "").strip().strip('"').strip("'")
         
         # Google Cloud Configuration
         self.gcp_project_id = os.getenv("GCP_PROJECT_ID", "")

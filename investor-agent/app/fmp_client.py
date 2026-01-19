@@ -17,7 +17,7 @@ class FMPClient:
     key metrics, and other investment-relevant data.
     """
     
-    BASE_URL = "https://financialmodelingprep.com/api/v3"
+    BASE_URL = "https://financialmodelingprep.com/stable"
     
     def __init__(self, api_key: str):
         """
@@ -57,6 +57,17 @@ class FMPClient:
         
         return response.json()
     
+    @staticmethod
+    def _normalize_ticker(ticker: str) -> str:
+        """Normalize tickers for FMP (e.g., BRK.B -> BRK-B)."""
+        return ticker.strip().upper().replace(".", "-")
+
+    def _symbol_params(self, ticker: str, params: Optional[Dict] = None) -> Dict[str, Any]:
+        if params is None:
+            params = {}
+        params["symbol"] = self._normalize_ticker(ticker)
+        return params
+
     def get_company_profile(self, ticker: str) -> Dict:
         """
         Get company profile information.
@@ -67,8 +78,8 @@ class FMPClient:
         Returns:
             Company profile data
         """
-        endpoint = f"profile/{ticker}"
-        data = self._make_request(endpoint)
+        endpoint = "profile"
+        data = self._make_request(endpoint, self._symbol_params(ticker))
         
         if not data or len(data) == 0:
             raise ValueError(f"No profile found for ticker {ticker}")
@@ -87,8 +98,8 @@ class FMPClient:
         Returns:
             List of income statement data
         """
-        endpoint = f"income-statement/{ticker}"
-        params = {"period": period, "limit": limit}
+        endpoint = "income-statement"
+        params = self._symbol_params(ticker, {"period": period, "limit": limit})
         return self._make_request(endpoint, params)
     
     def get_balance_sheet(self, ticker: str, period: str = "annual", limit: int = 5) -> List[Dict]:
@@ -103,8 +114,8 @@ class FMPClient:
         Returns:
             List of balance sheet data
         """
-        endpoint = f"balance-sheet-statement/{ticker}"
-        params = {"period": period, "limit": limit}
+        endpoint = "balance-sheet-statement"
+        params = self._symbol_params(ticker, {"period": period, "limit": limit})
         return self._make_request(endpoint, params)
     
     def get_cash_flow(self, ticker: str, period: str = "annual", limit: int = 5) -> List[Dict]:
@@ -119,8 +130,8 @@ class FMPClient:
         Returns:
             List of cash flow data
         """
-        endpoint = f"cash-flow-statement/{ticker}"
-        params = {"period": period, "limit": limit}
+        endpoint = "cash-flow-statement"
+        params = self._symbol_params(ticker, {"period": period, "limit": limit})
         return self._make_request(endpoint, params)
     
     def get_key_metrics(self, ticker: str, period: str = "annual", limit: int = 5) -> List[Dict]:
@@ -135,9 +146,22 @@ class FMPClient:
         Returns:
             List of key metrics data
         """
-        endpoint = f"key-metrics/{ticker}"
-        params = {"period": period, "limit": limit}
+        endpoint = "key-metrics"
+        params = self._symbol_params(ticker, {"period": period, "limit": limit})
         return self._make_request(endpoint, params)
+
+    def get_quote(self, ticker: str) -> List[Dict]:
+        """
+        Get real-time quote data.
+
+        Args:
+            ticker: Stock ticker symbol
+
+        Returns:
+            List of quote data
+        """
+        endpoint = "quote"
+        return self._make_request(endpoint, self._symbol_params(ticker))
     
     def get_company_data(self, ticker: str) -> Dict:
         """
