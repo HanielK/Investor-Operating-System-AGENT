@@ -21,8 +21,6 @@ try:
     from .metrics import MetricsCalculator
     from .scoring import InvestmentScorer
     from .writers.sheets_writer import SheetsWriter
-    from .writers.excel_writer import ExcelWriter
-    from .storage.drive_store import DriveStore
     from .storage.gcs_store import GCSStore
 except ImportError:
     # Fall back to absolute imports when run directly
@@ -31,8 +29,6 @@ except ImportError:
     from metrics import MetricsCalculator
     from scoring import InvestmentScorer
     from writers.sheets_writer import SheetsWriter
-    from writers.excel_writer import ExcelWriter
-    from storage.drive_store import DriveStore
     from storage.gcs_store import GCSStore
 
 
@@ -42,7 +38,7 @@ def main(ticker: str, output_format: str = "sheets") -> Dict[str, Any]:
     
     Args:
         ticker: Stock ticker symbol (e.g., 'AAPL', 'MSFT')
-        output_format: Output format - 'sheets' or 'excel'
+        output_format: Output format - 'sheets', 'gcs', or 'both'
     
     Returns:
         Result dictionary with exit code and artifacts
@@ -89,56 +85,35 @@ def main(ticker: str, output_format: str = "sheets") -> Dict[str, Any]:
         
         # Write results
         print(f"Writing results to {output_format}...")
-        if output_format == "sheets":
-            writer = SheetsWriter(config)
-            sheet_url = writer.write(results)
-            print(f"Results written to Google Sheets: {sheet_url}")
-            result["sheet_url"] = sheet_url
+        sheet_ok = False
+        gcs_ok = True
 
-            # Storage (best-effort)
-            if config.output_storage_backend == "gcs":
-                try:
-                    gs_uri = GCSStore(config).store_json(results, ticker)
-                    print(f"Stored JSON artifact in GCS: {gs_uri}")
-                    result["artifact_uri"] = gs_uri
-                except Exception as e:
-                    print(f"Warning: GCS JSON upload failed: {e}")
-                    result["errors"].append(str(e))
-            elif config.output_storage_backend == "drive":
-                try:
-                    file_id = DriveStore(config).store(results, ticker)
-                    result["artifact_uri"] = file_id
-                except Exception as e:
-                    print(f"Warning: Drive upload failed: {e}")
-                    result["errors"].append(str(e))
-            else:
-                print("No artifact storage configured")
-        else:
-            writer = ExcelWriter(config)
-            file_path = writer.write(results)
-            print(f"Results written to Excel: {file_path}")
-            
-            # Excel storage (best-effort)
-            if config.output_storage_backend == "gcs":
-                try:
-                    gs_uri = GCSStore(config).store_excel(file_path, ticker)
-                    print(f"Stored Excel artifact in GCS: {gs_uri}")
-                    result["artifact_uri"] = gs_uri
-                except Exception as e:
-                    print(f"Warning: GCS Excel upload failed: {e}")
-                    result["errors"].append(str(e))
-            elif config.output_storage_backend == "drive":
-                try:
-                    file_id = DriveStore(config).store_file(file_path, ticker)
-                    result["artifact_uri"] = file_id
-                except Exception as e:
-                    print(f"Warning: Drive upload failed: {e}")
-                    result["errors"].append(str(e))
-            else:
-                print("No artifact storage configured")
+        if output_format in ("sheets", "both"):
+            try:
+                writer = SheetsWriter(config)
+                sheet_url = writer.write(results)
+                print(f"Results written to Google Sheets: {sheet_url}")
+                result["sheet_url"] = sheet_url
+                sheet_ok = True
+            except Exception as e:
+                print(f"Warning: Sheets write failed: {e}")
+                result["errors"].append(str(e))
+
+        if output_format in ("gcs", "both"):
+            try:
+                gs_uri = GCSStore(config).store_json(results, ticker)
+                print(f"Stored JSON artifact in GCS: {gs_uri}")
+                result["artifact_uri"] = gs_uri
+                gcs_ok = True
+            except Exception as e:
+                print(f"Warning: GCS JSON upload failed: {e}")
+                result["errors"].append(str(e))
+                gcs_ok = False
+
+        result["exit_code"] = 0 if (sheet_ok and gcs_ok) else 1
+        result["updated"] = 1 if sheet_ok else 0
         
         print("Investment analysis complete!")
-        result["exit_code"] = 0
         return result
         
     except Exception as e:
@@ -149,7 +124,7 @@ def main(ticker: str, output_format: str = "sheets") -> Dict[str, Any]:
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python main.py <TICKER> [sheets|excel]")
+        print("Usage: python main.py <TICKER> [sheets|gcs|both]")
         sys.exit(1)
     
     ticker = sys.argv[1].upper()
