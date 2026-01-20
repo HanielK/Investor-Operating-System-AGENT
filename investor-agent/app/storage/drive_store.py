@@ -111,6 +111,50 @@ class DriveStore:
             if os.path.exists(temp_path):
                 os.remove(temp_path)
             raise RuntimeError(f"Failed to upload to Google Drive: {e}")
+
+    def store_file(self, file_path: str, ticker: str) -> str:
+        """
+        Store a file in Google Drive.
+
+        Args:
+            file_path: Path to the file to upload
+            ticker: Stock ticker symbol
+
+        Returns:
+            File ID of the uploaded file
+        """
+        if not self.drive_service:
+            raise RuntimeError("Google Drive service not initialized")
+
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"File not found: {file_path}")
+
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = os.path.basename(file_path)
+            name, ext = os.path.splitext(filename)
+            upload_name = f"{name}_{ticker}_{timestamp}{ext}"
+
+            file_metadata = {"name": upload_name}
+            if self.folder_id:
+                file_metadata["parents"] = [self.folder_id]
+
+            from googleapiclient.http import MediaFileUpload
+
+            media = MediaFileUpload(file_path, resumable=True)
+            file = self.drive_service.files().create(
+                body=file_metadata,
+                media_body=media,
+                fields="id,webViewLink"
+            ).execute()
+
+            file_id = file.get("id")
+            web_link = file.get("webViewLink", "")
+            print(f"Stored file in Google Drive: {web_link}")
+
+            return file_id
+        except Exception as e:
+            raise RuntimeError(f"Failed to upload file to Google Drive: {e}")
     
     def list_files(self, ticker: Optional[str] = None) -> list:
         """

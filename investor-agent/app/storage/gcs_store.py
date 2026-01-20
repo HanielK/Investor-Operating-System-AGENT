@@ -26,7 +26,7 @@ class GCSStore:
         """
         self.config = config
         self.bucket_name = config.gcs_bucket_name
-        self.project_id = config.gcp_project_id
+        self.gcs_prefix = config.gcs_prefix
         
         # Initialize GCS client
         self._init_gcs_client()
@@ -36,8 +36,8 @@ class GCSStore:
         try:
             from google.cloud import storage
             
-            # Initialize client (will use GOOGLE_APPLICATION_CREDENTIALS env var)
-            self.storage_client = storage.Client(project=self.project_id)
+            # Initialize client using ADC
+            self.storage_client = storage.Client()
             self.bucket = self.storage_client.bucket(self.bucket_name)
             
         except ImportError:
@@ -49,6 +49,12 @@ class GCSStore:
             self.storage_client = None
             self.bucket = None
     
+    def _build_object_name(self, ticker: str, filename: str) -> str:
+        prefix = self.gcs_prefix.strip("/")
+        if prefix:
+            prefix = f"{prefix}/"
+        return f"{prefix}{ticker}/{filename}"
+
     def store(self, file_path: str, ticker: str) -> str:
         """
         Store a file in Google Cloud Storage.
@@ -66,24 +72,25 @@ class GCSStore:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
         
+        if file_path.lower().endswith(".xlsx"):
+            return self.store_excel(file_path, ticker)
+
         try:
-            # Create blob name with timestamp and ticker
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
             filename = os.path.basename(file_path)
-            blob_name = f"analysis/{ticker}/{timestamp}/{filename}"
-            
-            # Upload file
-            blob = self.bucket.blob(blob_name)
+            name, ext = os.path.splitext(filename)
+            object_name = self._build_object_name(
+                ticker,
+                f"{name}_{timestamp}{ext}"
+            )
+
+            blob = self.bucket.blob(object_name)
             blob.upload_from_filename(file_path)
-            
-            # Make it publicly readable (optional - remove if not needed)
-            # blob.make_public()
-            
-            gcs_uri = f"gs://{self.bucket_name}/{blob_name}"
+
+            gcs_uri = f"gs://{self.bucket_name}/{object_name}"
             print(f"Stored in GCS: {gcs_uri}")
-            
+
             return gcs_uri
-            
         except Exception as e:
             raise RuntimeError(f"Failed to upload to GCS: {e}")
     
@@ -102,18 +109,20 @@ class GCSStore:
             raise RuntimeError("GCS client not initialized")
         
         try:
-            # Create blob name
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            blob_name = f"analysis/{ticker}/{timestamp}/analysis.json"
-            
-            # Upload JSON data
-            blob = self.bucket.blob(blob_name)
+            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            object_name = self._build_object_name(
+                ticker,
+                f"{ticker}_analysis_{timestamp}.json"
+            )
+
+            json_bytes = json.dumps(data, indent=2).encode("utf-8")
+            blob = self.bucket.blob(object_name)
             blob.upload_from_string(
-                json.dumps(data, indent=2),
-                content_type='application/json'
+                json_bytes,
+                content_type="application/json"
             )
             
-            gcs_uri = f"gs://{self.bucket_name}/{blob_name}"
+            gcs_uri = f"gs://{self.bucket_name}/{object_name}"
             print(f"Stored JSON in GCS: {gcs_uri}")
             
             return gcs_uri
@@ -135,9 +144,11 @@ class GCSStore:
             raise RuntimeError("GCS client not initialized")
         
         try:
-            prefix = "analysis/"
+            prefix = self.gcs_prefix.strip("/")
+            if prefix:
+                prefix = f"{prefix}/"
             if ticker:
-                prefix += f"{ticker}/"
+                prefix = f"{prefix}{ticker}/"
             
             blobs = self.bucket.list_blobs(prefix=prefix)
             
@@ -170,3 +181,35 @@ class GCSStore:
             
         except Exception as e:
             raise RuntimeError(f"Failed to download from GCS: {e}")
+
+    def store_excel(self, file_path: str, ticker: str) -> str:
+        """
+        Store an Excel file in GCS.
+
+        Args:
+            file_path: Path to the Excel file
+            ticker: Stock ticker symbol for organizing
+
+        Returns:
+            GCS URI of the uploaded file
+        """
+        if not self.storage_client or not self.bucket:
+            raise RuntimeError("GCS client not initialized")
+
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"File not found: {file_path}")
+
+        try:
+            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            object_name = self._build_object_name(
+                ticker,
+                f"{ticker}_excel_{timestamp}.xlsx"
+            )
+            blob = self.bucket.blob(object_name)
+            blob.upload_from_filename(file_path)
+
+            gcs_uri = f"gs://{self.bucket_name}/{object_name}"
+            print(f"Stored Excel in GCS: {gcs_uri}")
+            return gcs_uri
+        except Exception as e:
+            raise RuntimeError(f"Failed to upload Excel to GCS: {e}")
