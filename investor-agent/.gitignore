@@ -54,3 +54,4 @@ Thumbs.db
 # Google Cloud
 service-account-key.json
 gcp-credentials.json
+FETCH_HEAD
