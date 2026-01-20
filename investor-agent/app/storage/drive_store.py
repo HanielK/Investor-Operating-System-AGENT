@@ -31,23 +31,23 @@ class DriveStore:
         self._init_drive_client()
     
     def _init_drive_client(self):
-        """Initialize Google Drive API client."""
+        """Initialize Google Drive API client using Application Default Credentials (ADC)."""
         try:
-            from google.oauth2 import service_account
+            import google.auth
             from googleapiclient.discovery import build
-            
-            credentials = service_account.Credentials.from_service_account_file(
-                self.config.google_credentials_path,
+
+            credentials, _ = google.auth.default(
                 scopes=['https://www.googleapis.com/auth/drive.file']
             )
-            
             self.drive_service = build('drive', 'v3', credentials=credentials)
+
         except ImportError:
             print("Warning: Google API client libraries not installed. Install with: pip install google-api-python-client google-auth")
             self.drive_service = None
         except Exception as e:
             print(f"Warning: Could not initialize Google Drive client: {e}")
             self.drive_service = None
+
     
     def store(self, results: Dict[str, Any], ticker: str) -> str:
         """
