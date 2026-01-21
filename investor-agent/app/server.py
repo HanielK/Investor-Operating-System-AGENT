@@ -21,7 +21,6 @@ def health():
 
 @app.post("/run")
 def run(req: RunRequest):
-    # Wire allow_append/dry_run later in your writers/config if desired
     results = []
     updated = 0
 
@@ -29,40 +28,52 @@ def run(req: RunRequest):
         t = t.upper().strip()
         sheet_ok = False
         gcs_ok = False
+        artifact_uri = None
+        error_message = ""
+
         try:
             outcome = run_one(t, req.output_format)
         except Exception as e:
-            outcome = {"exit_code": 1, "artifact_uri": None, "errors": [str(e)]}
+            outcome = {
+                "exit_code": 1,
+                "artifact_uri": None,
+                "errors": [str(e)],
+            }
 
-        errors = outcome.get("errors", []) or []
+        exit_code = outcome.get("exit_code", 1)
         artifact_uri = outcome.get("artifact_uri")
-        sheet_url = outcome.get("sheet_url")
+        errors = outcome.get("errors", []) or []
 
+        # ---- Evaluate success per backend ----
         if req.output_format in ("sheets", "both"):
-            sheet_ok = bool(sheet_url)
+            sheet_ok = exit_code == 0
 
         if req.output_format in ("gcs", "both"):
             gcs_ok = isinstance(artifact_uri, str) and artifact_uri.startswith("gs://")
 
+        # ---- Final exit code logic ----
         if req.output_format == "sheets":
-            code = 0 if sheet_ok else 1
+            final_code = 0 if sheet_ok else 1
         elif req.output_format == "gcs":
-            code = 0 if gcs_ok else 1
-        else:
-            code = 0 if (sheet_ok and gcs_ok) else 1
+            final_code = 0 if gcs_ok else 1
+        else:  # both
+            final_code = 0 if (sheet_ok and gcs_ok) else 1
 
-        error_message = ""
-        if code != 0 and errors:
+        # ---- Error message handling ----
+        if final_code != 0 and errors:
             error_message = errors[0]
+
+        # Do not return artifact_uri if GCS failed
         if req.output_format in ("gcs", "both") and not gcs_ok:
             artifact_uri = None
 
         results.append({
             "ticker": t,
-            "exit_code": code,
+            "exit_code": final_code,
             "artifact_uri": artifact_uri,
-            "error_message": error_message
+            "error_message": error_message,
         })
+
         if sheet_ok:
             updated += 1
 
