@@ -26,6 +26,7 @@ def run(req: RunRequest):
 
     for t in req.tickers:
         t = t.upper().strip()
+
         sheet_ok = False
         gcs_ok = False
         artifact_uri = None
@@ -34,24 +35,22 @@ def run(req: RunRequest):
         try:
             outcome = run_one(t, req.output_format)
         except Exception as e:
-            outcome = {
-                "exit_code": 1,
-                "artifact_uri": None,
-                "errors": [str(e)],
-            }
+            outcome = {"exit_code": 1, "artifact_uri": None, "errors": [str(e)]}
 
-        exit_code = outcome.get("exit_code", 1)
+        # Normalize outcome fields
         artifact_uri = outcome.get("artifact_uri")
         errors = outcome.get("errors", []) or []
 
-        # ---- Evaluate success per backend ----
+        # Backend success checks
         if req.output_format in ("sheets", "both"):
-            sheet_ok = exit_code == 0
+            # Treat sheets as success if the runner says exit_code=0
+            sheet_ok = (outcome.get("exit_code", 1) == 0)
 
         if req.output_format in ("gcs", "both"):
+            # Treat gcs as success if we got a gs:// URI
             gcs_ok = isinstance(artifact_uri, str) and artifact_uri.startswith("gs://")
 
-        # ---- Final exit code logic ----
+        # Final exit code rules
         if req.output_format == "sheets":
             final_code = 0 if sheet_ok else 1
         elif req.output_format == "gcs":
@@ -59,17 +58,17 @@ def run(req: RunRequest):
         else:  # both
             final_code = 0 if (sheet_ok and gcs_ok) else 1
 
-        # ---- Error message handling ----
+        # Error message only when failing
         if final_code != 0 and errors:
             error_message = errors[0]
 
-        # Do not return artifact_uri if GCS failed
+        # Don't return artifact_uri if GCS wasn't successful
         if req.output_format in ("gcs", "both") and not gcs_ok:
             artifact_uri = None
 
         results.append({
             "ticker": t,
-            "exit_code": final_code,
+            "exit_code": final_code,          # ✅ always return final_code
             "artifact_uri": artifact_uri,
             "error_message": error_message,
         })
@@ -77,8 +76,4 @@ def run(req: RunRequest):
         if sheet_ok:
             updated += 1
 
-    return {
-        "updated": updated,
-        "updated_at": "server_time",
-        "results": results,
-    }
+    return {"updated": updated, "updated_at": "server_time", "results": results}
