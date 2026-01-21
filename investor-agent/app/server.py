@@ -27,39 +27,41 @@ def run(req: RunRequest):
 
     for t in req.tickers:
         t = t.upper().strip()
-        sheet_ok = True
-        gcs_ok = True
+        sheet_ok = False
+        gcs_ok = False
         try:
             outcome = run_one(t, req.output_format)
         except Exception as e:
             outcome = {"exit_code": 1, "artifact_uri": None, "errors": [str(e)]}
-            sheet_ok = False
 
-        base_code = outcome.get("exit_code", 1)
         errors = outcome.get("errors", []) or []
-
-        if base_code != 0:
-            sheet_ok = False
-        elif req.output_format == "sheets":
-            sheet_ok = True
-
-        gcs_requested = False
         artifact_uri = outcome.get("artifact_uri")
-        if isinstance(artifact_uri, str) and artifact_uri.startswith("gs://"):
-            gcs_requested = True
-        if any("GCS" in err or "gs://" in err for err in errors):
-            gcs_requested = True
-            gcs_ok = False
+        sheet_url = outcome.get("sheet_url")
 
-        if not gcs_requested:
-            gcs_ok = True
+        if req.output_format in ("sheets", "both"):
+            sheet_ok = bool(sheet_url)
 
-        code = 0 if (sheet_ok and gcs_ok) else 1
+        if req.output_format in ("gcs", "both"):
+            gcs_ok = isinstance(artifact_uri, str) and artifact_uri.startswith("gs://")
+
+        if req.output_format == "sheets":
+            code = 0 if sheet_ok else 1
+        elif req.output_format == "gcs":
+            code = 0 if gcs_ok else 1
+        else:
+            code = 0 if (sheet_ok and gcs_ok) else 1
+
+        error_message = ""
+        if code != 0 and errors:
+            error_message = errors[0]
+        if req.output_format in ("gcs", "both") and not gcs_ok:
+            artifact_uri = None
+
         results.append({
             "ticker": t,
             "exit_code": code,
             "artifact_uri": artifact_uri,
-            "error_message": errors[0] if errors else ""
+            "error_message": error_message
         })
         if sheet_ok:
             updated += 1
